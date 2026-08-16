@@ -124,3 +124,85 @@ class TestAccountService(TestCase):
         self.assertEqual(response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
 
     # ADD YOUR TEST CASES HERE ...
+class TestAccountRoutes(unittest.TestCase):
+    """Test suite for Account REST API Endpoints."""
+
+    def setUp(self):
+        """Set up test environment."""
+        self.client = app.test_client()
+        # Ensure database is clean before each test
+        Account.remove_all() if hasattr(Account, 'remove_all') else None
+
+    # ----------------------------------------------------------
+    # LIST TESTS
+    # ----------------------------------------------------------
+    def test_list_accounts_empty(self):
+        """Test listing accounts when database is empty."""
+        response = self.client.get("/accounts")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), [])
+
+    def test_list_accounts(self):
+        """Test listing all accounts."""
+        account = Account(name="Alice")
+        account.create()
+        response = self.client.get("/accounts")
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["name"], "Alice")
+
+    # ----------------------------------------------------------
+    # READ TESTS
+    # ----------------------------------------------------------
+    def test_read_account_success(self):
+        """Test reading an existing account."""
+        account = Account(name="Bob")
+        account.create()
+        response = self.client.get(f"/accounts/{account.id}")
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()
+        self.assertEqual(data["name"], "Bob")
+
+    def test_read_account_not_found(self):
+        """Test reading an account that does not exist."""
+        response = self.client.get("/accounts/0")
+        self.assertEqual(response.status_code, 404)
+
+    # ----------------------------------------------------------
+    # UPDATE TESTS
+    # ----------------------------------------------------------
+    def test_update_account_success(self):
+        """Test updating an existing account."""
+        account = Account(name="Charlie")
+        account.create()
+        updated_data = {"name": "Charlie Updated"}
+        
+        response = self.client.put(f"/accounts/{account.id}", json=updated_data)
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()
+        self.assertEqual(data["name"], "Charlie Updated")
+
+    def test_update_account_not_found(self):
+        """Test updating an account that does not exist."""
+        updated_data = {"name": "Nonexistent"}
+        response = self.client.put("/accounts/0", json=updated_data)
+        self.assertEqual(response.status_code, 404)
+
+    # ----------------------------------------------------------
+    # DELETE TESTS
+    # ----------------------------------------------------------
+    def test_delete_account_success(self):
+        """Test deleting an existing account."""
+        account = Account(name="David")
+        account.create()
+        
+        response = self.client.delete(f"/accounts/{account.id}")
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.data, b"")
+
+    def test_delete_account_not_found(self):
+        """Test deleting an account that does not exist (idempotent)."""
+        response = self.client.delete("/accounts/0")
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.data, b"")
